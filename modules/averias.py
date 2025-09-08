@@ -117,43 +117,44 @@ def create_averias_dashboard(df_averias, df_proyectos):
         if "alarm_status" in df_averias_processed.columns:
             averias_activas = len(df_averias_processed[df_averias_processed["alarm_status"] == "active"])
             
-            # Crear dos columnas pequeñas: métrica y botón
-            metric_col, button_col = st.columns([3, 1])
+            # Métrica arriba
+            st.metric("Averías Activas", averias_activas)
             
-            with metric_col:
-                st.metric("Averías Activas", averias_activas)
-            
-            with button_col:
-                if averias_activas > 0:
-                    # Preparar datos
-                    averias_activas_all = df_averias_processed[df_averias_processed["alarm_status"] == "active"]
-                    site_col = find_site_column(averias_activas_all)
-                    essential_columns = ["start_time", "end_time"]
-                    if site_col:
-                        essential_columns.append(site_col)
-                    essential_columns.extend(["cell_name", "alarm_id", "alarm_name", "alarm_status"])
-                    download_columns = [col for col in essential_columns if col in averias_activas_all.columns]
-                    
-                    # Crear Excel
-                    from io import BytesIO
-                    buffer = BytesIO()
-                    with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-                        averias_activas_all[download_columns].to_excel(
-                            writer, 
-                            sheet_name='Averias_Activas', 
-                            index=False
-                        )
-                    excel_data = buffer.getvalue()
-                    
-                    # Botón pequeño
-                    st.download_button(
-                        label="📥",
-                        data=excel_data,
-                        file_name=f"averias_activas_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        key="averias_activas_download_small",
-                        help=f"Descargar {averias_activas} averías activas en Excel"
+            # Botón debajo (solo si hay averías)
+            if averias_activas > 0:
+                # Preparar datos
+                averias_activas_all = df_averias_processed[df_averias_processed["alarm_status"] == "active"]
+                site_col = find_site_column(averias_activas_all)
+                essential_columns = ["start_time", "end_time"]
+                if site_col:
+                    essential_columns.append(site_col)
+                essential_columns.extend(["cell_name", "alarm_id", "alarm_name", "alarm_status"])
+                download_columns = [col for col in essential_columns if col in averias_activas_all.columns]
+                
+                # Ordenar por start_time de más antiguo a más reciente
+                if "start_time" in averias_activas_all.columns:
+                    averias_activas_all = averias_activas_all.sort_values("start_time", ascending=True)
+                
+                # Crear Excel
+                from io import BytesIO
+                buffer = BytesIO()
+                with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+                    averias_activas_all[download_columns].to_excel(
+                        writer, 
+                        sheet_name='Averias_Activas', 
+                        index=False
                     )
+                excel_data = buffer.getvalue()
+                
+                # Botón de descarga
+                st.download_button(
+                    label="📥 Descargar",
+                    data=excel_data,
+                    file_name=f"averias_activas_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="averias_activas_download",
+                    help=f"Descargar {averias_activas} averías activas en Excel"
+                )
         else:
             st.metric("Averías Activas", "N/A")
 
