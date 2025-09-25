@@ -2,9 +2,10 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from datetime import datetime
+from datetime import datetime, timedelta
 import numpy as np
 from utils.helpers import find_site_column, parse_datetime_column
+from io import BytesIO
 
 def create_site_location_mapping(df_proyectos):
     """Crea un mapeo único de sites a ubicaciones geográficas"""
@@ -136,7 +137,6 @@ def create_averias_dashboard(df_averias, df_proyectos):
                     averias_activas_all = averias_activas_all.sort_values("start_time", ascending=True)
                 
                 # Crear Excel
-                from io import BytesIO
                 buffer = BytesIO()
                 with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
                     averias_activas_all[download_columns].to_excel(
@@ -266,96 +266,96 @@ def create_averias_dashboard(df_averias, df_proyectos):
                 max_resolution = averias_resueltas["duration_minutes"].max()
                 st.metric("⚠️ Mayor Tiempo", f"{max_resolution:.1f} min")
 
-    # Top/Bottom sites por tiempo de resolución
-    if len(averias_resueltas) > 0:       
-        ranking_col1, ranking_col2 = st.columns(2)
-        
-        with ranking_col1:
-            # Sites con mayor tiempo de resolución
-            site_avg_time = averias_resueltas.groupby(site_col)["duration_minutes"].agg(['mean', 'count']).reset_index()
-            site_avg_time = site_avg_time[site_avg_time['count'] >= 3]  # Solo sites con 3+ averías
-            top_slow = site_avg_time.nlargest(10, 'mean')
+            # Top/Bottom sites por tiempo de resolución
+            ranking_col1, ranking_col2 = st.columns(2)
             
-            if len(top_slow) > 0:
-                fig_slow = px.bar(
-                    top_slow,
-                    x='mean',
-                    y=site_col,
-                    orientation='h',
-                    title="🐌 Sites con Mayor Tiempo de Resolución",
-                    labels={'mean': 'Tiempo Promedio (min)', site_col: 'Site'},
-                    color='mean',
-                    color_continuous_scale='Reds'
-                )
-                fig_slow.update_layout(height=400)
-                st.plotly_chart(fig_slow, use_container_width=True)
-        
-        with ranking_col2:
-            # Sites con averías activas con más tiempo abierto
-            if "alarm_status" in df_filtrado.columns:
-                averias_activas_actual = df_filtrado[df_filtrado["alarm_status"] == "active"]
+            with ranking_col1:
+                # Sites con mayor tiempo de resolución
+                site_avg_time = averias_resueltas.groupby(site_col)["duration_minutes"].agg(['mean', 'count']).reset_index()
+                site_avg_time = site_avg_time[site_avg_time['count'] >= 3]  # Solo sites con 3+ averías
+                top_slow = site_avg_time.nlargest(10, 'mean')
                 
-                if len(averias_activas_actual) > 0 and "start_time" in averias_activas_actual.columns:
-                    # Calcular tiempo transcurrido desde inicio de avería activa
-                    now = pd.Timestamp.now()
-                    averias_activas_actual['tiempo_abierto_horas'] = (now - averias_activas_actual['start_time']).dt.total_seconds() / 3600
+                if len(top_slow) > 0:
+                    fig_slow = px.bar(
+                        top_slow,
+                        x='mean',
+                        y=site_col,
+                        orientation='h',
+                        title="🌊 Sites con Mayor Tiempo de Resolución",
+                        labels={'mean': 'Tiempo Promedio (min)', site_col: 'Site'},
+                        color='mean',
+                        color_continuous_scale='Reds'
+                    )
+                    fig_slow.update_layout(height=400)
+                    st.plotly_chart(fig_slow, use_container_width=True)
+            
+            with ranking_col2:
+                # Sites con averías activas con más tiempo abierto
+                if "alarm_status" in df_filtrado.columns:
+                    averias_activas_actual = df_filtrado[df_filtrado["alarm_status"] == "active"]
                     
-                    # Agrupar por site y obtener el promedio de tiempo abierto
-                    site_tiempo_abierto = averias_activas_actual.groupby(site_col)['tiempo_abierto_horas'].agg(['mean', 'count']).reset_index()
-                    site_tiempo_abierto = site_tiempo_abierto[site_tiempo_abierto['count'] >= 1]  # Al menos 1 avería activa
-                    top_tiempo_abierto = site_tiempo_abierto.nlargest(10, 'mean')
-                    
-                    if len(top_tiempo_abierto) > 0:
-                        fig_tiempo_abierto = px.bar(
-                            top_tiempo_abierto,
-                            x='mean',
-                            y=site_col,
-                            orientation='h',
-                            title="⏰ Sites con averías activas más tiempo abierto",
-                            labels={'mean': 'Tiempo promedio abierto (horas)', site_col: 'Site'},
-                            color='mean',
-                            color_continuous_scale='Oranges'
-                        )
-                        fig_tiempo_abierto.update_layout(height=400)
-                        st.plotly_chart(fig_tiempo_abierto, use_container_width=True)
+                    if len(averias_activas_actual) > 0 and "start_time" in averias_activas_actual.columns:
+                        # Calcular tiempo transcurrido desde inicio de avería activa
+                        now = pd.Timestamp.now()
+                        averias_activas_actual['tiempo_abierto_horas'] = (now - averias_activas_actual['start_time']).dt.total_seconds() / 3600
+                        
+                        # Agrupar por site y obtener el promedio de tiempo abierto
+                        site_tiempo_abierto = averias_activas_actual.groupby(site_col)['tiempo_abierto_horas'].agg(['mean', 'count']).reset_index()
+                        site_tiempo_abierto = site_tiempo_abierto[site_tiempo_abierto['count'] >= 1]  # Al menos 1 avería activa
+                        top_tiempo_abierto = site_tiempo_abierto.nlargest(10, 'mean')
+                        
+                        if len(top_tiempo_abierto) > 0:
+                            fig_tiempo_abierto = px.bar(
+                                top_tiempo_abierto,
+                                x='mean',
+                                y=site_col,
+                                orientation='h',
+                                title="⏰ Sites con averías activas más tiempo abierto",
+                                labels={'mean': 'Tiempo promedio abierto (horas)', site_col: 'Site'},
+                                color='mean',
+                                color_continuous_scale='Oranges'
+                            )
+                            fig_tiempo_abierto.update_layout(height=400)
+                            st.plotly_chart(fig_tiempo_abierto, use_container_width=True)
+                        else:
+                            st.info("No hay suficientes averías activas para mostrar")
                     else:
-                        st.info("No hay suficientes averías activas para mostrar")
+                        st.info("No hay averías activas o faltan datos de tiempo")
                 else:
-                    st.info("No hay averías activas o faltan datos de tiempo")
-            else:
-                st.warning("No se encontró la columna 'alarm_status'")
+                    st.warning("No se encontró la columna 'alarm_status'")
 
     # Análisis de distribución
     st.subheader("📈 Distribución de tiempos de resolución")
 
     # Selector de site para análisis detallado
-    sites_con_datos = averias_resueltas[site_col].value_counts()
-    sites_disponibles = sites_con_datos[sites_con_datos >= 5].index.tolist()  # Solo sites con 5+ averías
+    if "duration_minutes" in df_filtrado.columns and site_col:
+        averias_resueltas = df_filtrado.dropna(subset=["duration_minutes"])
+        sites_con_datos = averias_resueltas[site_col].value_counts()
+        sites_disponibles = sites_con_datos[sites_con_datos >= 5].index.tolist()  # Solo sites con 5+ averías
 
-    if sites_disponibles:
-        selected_site_analysis = st.selectbox(
-            "Seleccionar site para análisis detallado:",
-            ["Todos"] + sites_disponibles,
-            key="site_analysis_selector"
-        )
-        
-        if selected_site_analysis == "Todos":
-            analysis_data = averias_resueltas
-            title_suffix = "Todos los Sites"
-        else:
-            analysis_data = averias_resueltas[averias_resueltas[site_col] == selected_site_analysis]
-            print(analysis_data.columns)
-            title_suffix = selected_site_analysis
-        
-        # Histograma de distribución
-        fig_hist = px.histogram(
-            analysis_data,
-            x="duration_minutes",
-            nbins=30,
-            title=f"Distribución de tiempos de resolución - {title_suffix}",
-            labels={'duration_minutes': 'Tiempo de resolución (minutos)', 'count': 'Frecuencia'}
-        )
-        st.plotly_chart(fig_hist, use_container_width=True)
+        if sites_disponibles:
+            selected_site_analysis = st.selectbox(
+                "Seleccionar site para análisis detallado:",
+                ["Todos"] + sites_disponibles,
+                key="site_analysis_selector"
+            )
+            
+            if selected_site_analysis == "Todos":
+                analysis_data = averias_resueltas
+                title_suffix = "Todos los Sites"
+            else:
+                analysis_data = averias_resueltas[averias_resueltas[site_col] == selected_site_analysis]
+                title_suffix = selected_site_analysis
+            
+            # Histograma de distribución
+            fig_hist = px.histogram(
+                analysis_data,
+                x="duration_minutes",
+                nbins=30,
+                title=f"Distribución de tiempos de resolución - {title_suffix}",
+                labels={'duration_minutes': 'Tiempo de resolución (minutos)', 'count': 'Frecuencia'}
+            )
+            st.plotly_chart(fig_hist, use_container_width=True)
 
     # === TOP SITES EN DOS COLUMNAS ===
     site_col = find_site_column(df_filtrado)
@@ -602,6 +602,126 @@ def create_averias_dashboard(df_averias, df_proyectos):
     # === TABLA DE DATOS FILTRADOS ===
     st.subheader("📋 Tabla de Averías")
     
+    # Filtros adicionales por fechas y sites
+    st.subheader("🔍 Filtros Adicionales")
+    
+    # Aplicar filtros paso a paso
+    df_temp_filtros = df_filtrado.copy()
+    
+    # === FILTRO POR RANGO DE FECHAS ===
+    if "start_time" in df_filtrado.columns and start_time_date_conversion_success:
+        st.markdown("**📅 Filtro por Rango de Fechas**")
+        
+        # Obtener rango de fechas disponible
+        min_date = df_filtrado["start_time"].min().date()
+        max_date = df_filtrado["start_time"].max().date()
+        
+        date_col1, date_col2 = st.columns(2)
+        
+        with date_col1:
+            fecha_inicio = st.date_input(
+                "Fecha de inicio:",
+                value=min_date,
+                min_value=min_date,
+                max_value=max_date,
+                key="averias_fecha_inicio"
+            )
+        
+        with date_col2:
+            fecha_fin = st.date_input(
+                "Fecha de fin:",
+                value=max_date,
+                min_value=min_date,
+                max_value=max_date,
+                key="averias_fecha_fin"
+            )
+        
+        # Validar y aplicar filtro de fechas
+        if fecha_inicio <= fecha_fin:
+            # Filtrar por rango de fechas
+            df_temp_filtros = df_temp_filtros[
+                (df_temp_filtros["start_time"].dt.date >= fecha_inicio) &
+                (df_temp_filtros["start_time"].dt.date <= fecha_fin)
+            ].copy()
+            
+            # Mostrar métricas del filtro de fechas
+            date_metrics_col1, date_metrics_col2, date_metrics_col3 = st.columns(3)
+            
+            with date_metrics_col1:
+                delta_fechas = len(df_temp_filtros) - len(df_filtrado)
+                st.metric("Registros en rango", f"{len(df_temp_filtros):,}", delta=delta_fechas)
+            
+            with date_metrics_col2:
+                if "alarm_status" in df_temp_filtros.columns:
+                    activas_rango = len(df_temp_filtros[df_temp_filtros["alarm_status"] == "active"])
+                    st.metric("Activas en rango", activas_rango)
+            
+            with date_metrics_col3:
+                dias_seleccionados = (fecha_fin - fecha_inicio).days + 1
+                st.metric("Días seleccionados", dias_seleccionados)
+        else:
+            st.error("⚠️ La fecha de inicio debe ser menor o igual a la fecha de fin")
+    else:
+        st.info("ℹ️ No hay datos de fecha válidos para aplicar filtro temporal")
+    
+    # === FILTRO POR SITE NAME ===
+    site_col = find_site_column(df_temp_filtros)
+    if site_col:
+        st.markdown("**🏗️ Filtro por Site Name**")
+        
+        # Obtener lista de sites únicos en los datos filtrados por fecha
+        sites_disponibles = sorted(df_temp_filtros[site_col].dropna().unique())
+        
+        if sites_disponibles:
+            site_filter_col1, site_filter_col2 = st.columns([3, 1])
+            
+            with site_filter_col1:
+                sites_seleccionados = st.multiselect(
+                    "Seleccionar sites:",
+                    options=sites_disponibles,
+                    default=[],
+                    key="averias_sites_filter",
+                    help=f"Disponibles: {len(sites_disponibles)} sites únicos"
+                )
+            
+            with site_filter_col2:
+                st.markdown("**Acciones rápidas:**")
+                if st.button("Seleccionar todos", key="select_all_sites"):
+                    st.session_state["averias_sites_filter"] = sites_disponibles
+                    st.rerun()
+                
+                if st.button("Limpiar selección", key="clear_sites"):
+                    st.session_state["averias_sites_filter"] = []
+                    st.rerun()
+            
+            # Aplicar filtro de sites si hay selección
+            if sites_seleccionados:
+                df_temp_filtros = df_temp_filtros[
+                    df_temp_filtros[site_col].isin(sites_seleccionados)
+                ].copy()
+                
+                # Mostrar métricas del filtro de sites
+                site_metrics_col1, site_metrics_col2, site_metrics_col3 = st.columns(3)
+                
+                with site_metrics_col1:
+                    st.metric("Sites seleccionados", len(sites_seleccionados))
+                
+                with site_metrics_col2:
+                    registros_sites = len(df_temp_filtros)
+                    st.metric("Registros filtrados", f"{registros_sites:,}")
+                
+                with site_metrics_col3:
+                    if "alarm_status" in df_temp_filtros.columns:
+                        activas_sites = len(df_temp_filtros[df_temp_filtros["alarm_status"] == "active"])
+                        st.metric("Activas filtradas", activas_sites)
+        else:
+            st.warning("⚠️ No hay sites disponibles en el rango de fechas seleccionado")
+    else:
+        st.warning("⚠️ No se encontró columna de sites para filtrar")
+    
+    # Usar el DataFrame con todos los filtros aplicados
+    df_tabla = df_temp_filtros
+    
     # Controles de tabla
     table_col1, table_col2 = st.columns(2)
 
@@ -613,24 +733,43 @@ def create_averias_dashboard(df_averias, df_proyectos):
 
     # Preparar columnas para mostrar
     if show_all_columns:
-        display_columns = list(df_filtrado.columns)
+        display_columns = list(df_tabla.columns)
     else:
         # Mostrar columnas esenciales
         essential_columns = ["start_time", "end_time", "duration_minutes"]
         if site_col:
             essential_columns.append(site_col)
         essential_columns.extend(["cell_name", "alarm_id", "alarm_name", "alarm_status"])
-        display_columns = [col for col in essential_columns if col in df_filtrado.columns]
+        display_columns = [col for col in essential_columns if col in df_tabla.columns]
     
     # Mostrar datos
-    st.dataframe(df_filtrado[display_columns].head(max_rows), use_container_width=True, hide_index=True)
+    st.dataframe(df_tabla[display_columns].head(max_rows), use_container_width=True, hide_index=True)
     
-    # Botón de descarga
-    csv = df_filtrado.to_csv(index=False)
-    st.download_button(
-        label="📥 Descargar averías filtradas (CSV)",
-        data=csv,
-        file_name=f"averias_filtradas_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-        mime="text/csv",
-        key="averias_download_filtered"
-    )
+    # Botones de descarga
+    download_col1, download_col2 = st.columns(2)
+    
+    with download_col1:
+        # Botón de descarga CSV
+        csv = df_tabla.to_csv(index=False)
+        st.download_button(
+            label="📥 Descargar CSV",
+            data=csv,
+            file_name=f"averias_filtradas_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+            mime="text/csv",
+            key="averias_download_filtered_csv"
+        )
+    
+    with download_col2:
+        # Botón de descarga Excel
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+            df_tabla.to_excel(writer, sheet_name='Averias_Filtradas', index=False)
+        excel_data = buffer.getvalue()
+        
+        st.download_button(
+            label="📥 Descargar Excel",
+            data=excel_data,
+            file_name=f"averias_filtradas_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="averias_download_filtered_excel"
+        )
