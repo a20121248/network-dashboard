@@ -59,7 +59,7 @@ def main():
     initialize_session_state()
     
     # Título principal
-    st.markdown('<h1 class="main-header">🌐 Dashboard de Lorena - Operaciones de Red</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">🌐 Dashboard de **Lorena** - Operaciones de Red</h1>', unsafe_allow_html=True)
     
     # Sidebar para carga de archivos
     with st.sidebar:
